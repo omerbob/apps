@@ -1,0 +1,1626 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Real or Alien?</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #15171c;
+      --muted: #5f6876;
+      --paper: #fff8ea;
+      --panel: #ffffff;
+      --real: #246bfe;
+      --alien: #22a86b;
+      --wrong: #d94343;
+      --line: #d8dde6;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 18% 12%, rgba(255, 213, 79, .35), transparent 24rem),
+        radial-gradient(circle at 82% 18%, rgba(34, 168, 107, .24), transparent 22rem),
+        linear-gradient(135deg, #fff8ea 0%, #e9f6ff 52%, #f6edff 100%);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .game {
+      width: min(960px, 100%);
+      min-height: min(720px, calc(100vh - 48px));
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 18px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .meter {
+      flex: 1;
+      height: 12px;
+      max-width: 360px;
+      border: 1px solid rgba(21, 23, 28, .12);
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, .7);
+    }
+
+    .meter span {
+      display: block;
+      height: 100%;
+      width: var(--progress, 0%);
+      background: linear-gradient(90deg, var(--alien), var(--real));
+      transition: width .25s ease;
+    }
+
+    .stage {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 430px;
+      padding: clamp(24px, 6vw, 64px);
+      border: 1px solid rgba(21, 23, 28, .1);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .72);
+      box-shadow: 0 24px 80px rgba(29, 44, 70, .16);
+      overflow: hidden;
+    }
+
+    .word {
+      max-width: 100%;
+      margin: 0;
+      text-align: center;
+      font-size: clamp(64px, 15vw, 180px);
+      line-height: .95;
+      font-weight: 950;
+      letter-spacing: 0;
+      text-transform: lowercase;
+      white-space: nowrap;
+      transition: transform .18s ease, opacity .18s ease;
+    }
+
+    .word.bump {
+      transform: scale(1.04);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .choice,
+    .again,
+    .start-button {
+      min-height: 74px;
+      border: 0;
+      border-radius: 8px;
+      color: #fff;
+      font-size: clamp(24px, 4vw, 42px);
+      font-weight: 950;
+      letter-spacing: 0;
+      cursor: pointer;
+      box-shadow: 0 12px 26px rgba(21, 23, 28, .18);
+      transition: transform .14s ease, filter .14s ease, opacity .14s ease;
+    }
+
+    .choice:hover,
+    .again:hover,
+    .start-button:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.04);
+    }
+
+    .choice:active,
+    .again:active,
+    .start-button:active {
+      transform: translateY(1px);
+    }
+
+    .choice:disabled {
+      cursor: default;
+      opacity: .55;
+      transform: none;
+    }
+
+    .real {
+      background: linear-gradient(135deg, #246bfe, #1448b8);
+    }
+
+    .alien {
+      background: linear-gradient(135deg, #25b878, #137b50);
+    }
+
+    .feedback {
+      position: absolute;
+      inset: 0;
+      display: none;
+      place-items: center;
+      pointer-events: none;
+      background: rgba(255, 255, 255, .78);
+      animation: fadeOut 2.4s ease forwards;
+    }
+
+    .feedback.show {
+      display: grid;
+    }
+
+    .setup {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(255, 255, 255, .95);
+      z-index: 10;
+    }
+
+    .setup.hide {
+      display: none;
+    }
+
+    .setup-box {
+      width: min(720px, 100%);
+      text-align: center;
+    }
+
+    .setup h1 {
+      margin: 0 0 12px;
+      font-size: clamp(44px, 8vw, 88px);
+      line-height: .95;
+      letter-spacing: 0;
+    }
+
+    .setup p {
+      margin: 0 0 22px;
+      color: var(--muted);
+      font-size: clamp(17px, 2.2vw, 22px);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .length-control {
+      display: grid;
+      gap: 10px;
+      margin: 0 auto 22px;
+      width: min(360px, 100%);
+    }
+
+    .length-control label {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .length-control input {
+      width: 100%;
+      min-height: 60px;
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-size: 24px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .aliens {
+      display: flex;
+      align-items: end;
+      justify-content: center;
+      gap: clamp(10px, 3vw, 28px);
+      width: 100%;
+      padding: 20px;
+    }
+
+    .creature {
+      position: relative;
+      width: clamp(76px, 14vw, 132px);
+      height: clamp(122px, 20vw, 196px);
+      border-radius: 48% 48% 42% 42%;
+      background:
+        radial-gradient(ellipse at 50% 27%, #39d584 0 43%, transparent 44%),
+        linear-gradient(#2fbf76 46%, #24a866 100%);
+      box-shadow: inset -14px -18px rgba(0, 0, 0, .08);
+      transform-origin: 50% 100%;
+    }
+
+    .creature::before,
+    .creature::after {
+      content: "";
+      position: absolute;
+      top: 22%;
+      width: 22%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: inset 0 -4px rgba(0, 0, 0, .12);
+    }
+
+    .creature::before {
+      left: 20%;
+    }
+
+    .creature::after {
+      right: 20%;
+    }
+
+    .eye-dot {
+      position: absolute;
+      top: 30%;
+      width: 8%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: #111;
+      z-index: 2;
+    }
+
+    .eye-dot.left {
+      left: 27%;
+    }
+
+    .eye-dot.right {
+      right: 27%;
+    }
+
+    .mouth {
+      position: absolute;
+      left: 34%;
+      top: 34%;
+      width: 32%;
+      height: 18%;
+      border: solid #111;
+      border-width: 0 0 5px;
+      border-radius: 0 0 999px 999px;
+    }
+
+    .antenna {
+      position: absolute;
+      top: -24%;
+      width: 5px;
+      height: 34%;
+      background: #1a8a55;
+      border-radius: 999px;
+      transform-origin: bottom;
+    }
+
+    .antenna.left {
+      left: 30%;
+      transform: rotate(-22deg);
+    }
+
+    .antenna.right {
+      right: 30%;
+      transform: rotate(22deg);
+    }
+
+    .antenna::before {
+      content: "";
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #ffcf3f;
+      transform: translateX(-50%);
+    }
+
+    .belly {
+      position: absolute;
+      left: 30%;
+      bottom: 14%;
+      width: 40%;
+      height: 29%;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .22);
+      z-index: 1;
+    }
+
+    .arm,
+    .leg {
+      position: absolute;
+      background: #1e965d;
+      border-radius: 999px;
+      box-shadow: inset -4px -5px rgba(0, 0, 0, .1);
+      z-index: 0;
+    }
+
+    .arm {
+      top: 51%;
+      width: 12%;
+      height: 34%;
+      transform-origin: 50% 10%;
+    }
+
+    .arm.left {
+      left: -4%;
+      transform: rotate(28deg);
+    }
+
+    .arm.right {
+      right: -4%;
+      transform: rotate(-28deg);
+    }
+
+    .leg {
+      bottom: -6%;
+      width: 16%;
+      height: 22%;
+    }
+
+    .leg.left {
+      left: 27%;
+      transform: rotate(7deg);
+    }
+
+    .leg.right {
+      right: 27%;
+      transform: rotate(-7deg);
+    }
+
+    .party .creature {
+      animation: dance .42s ease-in-out infinite alternate;
+    }
+
+    .party-pop .creature {
+      animation: popDance .52s cubic-bezier(.2, 1.6, .4, 1) infinite;
+    }
+
+    .party-twirl .creature {
+      animation: twirlDance .68s ease-in-out infinite;
+    }
+
+    .party .arm.left {
+      animation: waveLeft .34s ease-in-out infinite alternate;
+    }
+
+    .party .arm.right {
+      animation: waveRight .34s ease-in-out infinite alternate;
+    }
+
+    .party .creature:nth-child(2) {
+      animation-delay: .12s;
+      background:
+        radial-gradient(ellipse at 50% 27%, #46c2ff 0 43%, transparent 44%),
+        linear-gradient(#35aee8 46%, #2386bd 100%);
+    }
+
+    .party .creature:nth-child(3) {
+      animation-delay: .24s;
+      background:
+        radial-gradient(ellipse at 50% 27%, #f06bd8 0 43%, transparent 44%),
+        linear-gradient(#dc55c4 46%, #a53392 100%);
+    }
+
+    .party::before,
+    .party::after {
+      content: "";
+      position: absolute;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle, #ffcf3f 0 4px, transparent 5px),
+        radial-gradient(circle, #ff6a6a 0 4px, transparent 5px),
+        radial-gradient(circle, #246bfe 0 4px, transparent 5px);
+      background-size: 34px 34px, 47px 47px, 58px 58px;
+      animation: confetti 1s linear infinite;
+      opacity: .8;
+    }
+
+    .party::before {
+      left: 4%;
+      top: 4%;
+    }
+
+    .party::after {
+      right: 4%;
+      top: 8%;
+      animation-direction: reverse;
+    }
+
+    .firework {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ffcf3f;
+      box-shadow:
+        0 -34px #ffcf3f,
+        25px -25px #ff6a6a,
+        34px 0 #246bfe,
+        25px 25px #22a86b,
+        0 34px #f06bd8,
+        -25px 25px #ffcf3f,
+        -34px 0 #ff6a6a,
+        -25px -25px #246bfe;
+      opacity: 0;
+      animation: fireworkBurst 1.15s ease-out infinite;
+      z-index: 0;
+    }
+
+    .firework.one {
+      left: 18%;
+      top: 18%;
+    }
+
+    .firework.two {
+      right: 18%;
+      top: 22%;
+      animation-delay: .38s;
+      transform: scale(.82);
+    }
+
+    .firework.three {
+      left: 50%;
+      top: 12%;
+      animation-delay: .76s;
+      transform: scale(.72);
+    }
+
+    .sparkle {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      background: #ffcf3f;
+      clip-path: polygon(50% 0, 62% 36%, 100% 50%, 62% 64%, 50% 100%, 38% 64%, 0 50%, 38% 36%);
+      opacity: 0;
+      animation: sparklePop .8s ease-out infinite;
+      z-index: 1;
+    }
+
+    .sparkle.one {
+      left: 28%;
+      top: 28%;
+    }
+
+    .sparkle.two {
+      right: 30%;
+      top: 34%;
+      animation-delay: .22s;
+      background: #f06bd8;
+    }
+
+    .sparkle.three {
+      left: 47%;
+      top: 20%;
+      animation-delay: .44s;
+      background: #46c2ff;
+    }
+
+    .ufo {
+      position: absolute;
+      left: -20%;
+      top: 16%;
+      width: 96px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(#b9e7ff 0 38%, #617487 39% 100%);
+      box-shadow: 0 10px 0 -4px rgba(21, 23, 28, .2);
+      animation: ufoFly 2.35s ease-in-out forwards;
+      z-index: 1;
+    }
+
+    .ufo::before {
+      content: "";
+      position: absolute;
+      left: 31%;
+      top: -14px;
+      width: 38%;
+      height: 24px;
+      border-radius: 50% 50% 0 0;
+      background: rgba(70, 194, 255, .72);
+      border: 2px solid rgba(255, 255, 255, .8);
+    }
+
+    .cry .creature {
+      animation: sob .38s ease-in-out infinite alternate;
+      background:
+        radial-gradient(ellipse at 50% 27%, #7ec5ff 0 43%, transparent 44%),
+        linear-gradient(#58aeea 46%, #377fb9 100%);
+    }
+
+    .cry .mouth {
+      top: 40%;
+      height: 20%;
+      border-width: 5px 0 0;
+      border-radius: 999px 999px 0 0;
+    }
+
+    .cry-slump .creature {
+      animation: slump .72s ease-in-out infinite alternate;
+    }
+
+    .cry-dizzy .creature {
+      animation: dizzyWobble .58s ease-in-out infinite;
+    }
+
+    .cry .arm.left {
+      transform: rotate(70deg);
+    }
+
+    .cry .arm.right {
+      transform: rotate(-70deg);
+    }
+
+    .dizzy-star {
+      position: absolute;
+      top: -17%;
+      width: 15%;
+      aspect-ratio: 1;
+      background: #ffcf3f;
+      clip-path: polygon(50% 0, 62% 36%, 100% 50%, 62% 64%, 50% 100%, 38% 64%, 0 50%, 38% 36%);
+      animation: orbitStar .75s linear infinite;
+      z-index: 4;
+    }
+
+    .dizzy-star.left {
+      left: 24%;
+    }
+
+    .dizzy-star.right {
+      right: 24%;
+      animation-delay: .28s;
+    }
+
+    .sad-bubble {
+      position: absolute;
+      bottom: 18%;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 3px solid rgba(36, 107, 254, .45);
+      opacity: 0;
+      animation: bubbleFloat 1.35s ease-out infinite;
+    }
+
+    .sad-bubble.one {
+      left: 23%;
+    }
+
+    .sad-bubble.two {
+      left: 58%;
+      animation-delay: .38s;
+    }
+
+    .sad-bubble.three {
+      right: 18%;
+      animation-delay: .72s;
+    }
+
+    .tear {
+      position: absolute;
+      top: 42%;
+      width: 10%;
+      height: 18%;
+      border-radius: 50% 50% 55% 55%;
+      background: #246bfe;
+      animation: tearDrop .5s ease-in infinite;
+      z-index: 3;
+    }
+
+    .tear.left {
+      left: 25%;
+    }
+
+    .tear.right {
+      right: 25%;
+      animation-delay: .18s;
+    }
+
+    .summary {
+      position: absolute;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 16px;
+      background: rgba(255, 255, 255, .95);
+      overflow: hidden;
+    }
+
+    .summary.show {
+      display: grid;
+    }
+
+    .summary-box {
+      width: min(620px, 100%);
+      text-align: center;
+    }
+
+    .summary h1 {
+      margin: 0 0 6px;
+      font-size: clamp(34px, 6vw, 58px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .summary p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: clamp(16px, 2.4vw, 21px);
+      font-weight: 800;
+    }
+
+    .medal-scene {
+      display: none;
+      justify-content: center;
+      align-items: end;
+      min-height: 122px;
+      margin: 0 0 10px;
+    }
+
+    .medal-scene.show {
+      display: flex;
+    }
+
+    .medal-alien {
+      position: relative;
+      width: clamp(84px, 16vw, 118px);
+      height: clamp(106px, 19vw, 148px);
+      animation: medalBounce 1.05s ease-in-out infinite;
+    }
+
+    .medal-alien .creature {
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(ellipse at 50% 27%, #39d584 0 43%, transparent 44%),
+        linear-gradient(#2fbf76 46%, #24a866 100%);
+    }
+
+    .medal-ribbon {
+      position: absolute;
+      left: 50%;
+      top: 56%;
+      width: 34%;
+      height: 22%;
+      transform: translateX(-50%);
+      background: linear-gradient(90deg, #246bfe 0 42%, #fff 42% 58%, #d94343 58% 100%);
+      clip-path: polygon(18% 0, 82% 0, 66% 100%, 34% 100%);
+      z-index: 4;
+    }
+
+    .medal {
+      position: absolute;
+      left: 50%;
+      top: 73%;
+      width: 34%;
+      aspect-ratio: 1;
+      transform: translateX(-50%);
+      border: 5px solid rgba(255, 255, 255, .85);
+      border-radius: 50%;
+      box-shadow: 0 8px 14px rgba(21, 23, 28, .22), inset -8px -10px rgba(0, 0, 0, .12);
+      z-index: 5;
+      animation: medalShine 1.2s ease-in-out infinite alternate;
+    }
+
+    .medal::before {
+      content: "";
+      position: absolute;
+      inset: 18%;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .28);
+    }
+
+    .medal::after {
+      content: attr(data-label);
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: rgba(21, 23, 28, .72);
+      font-size: clamp(18px, 4vw, 30px);
+      font-weight: 950;
+    }
+
+    .medal.bronze {
+      background: linear-gradient(135deg, #d8995c, #935a2c);
+    }
+
+    .medal.silver {
+      background: linear-gradient(135deg, #f7f8fb, #9aa5b5);
+    }
+
+    .medal.gold {
+      background: linear-gradient(135deg, #ffe477, #d79516);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 0 0 14px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 6px;
+      background: #fff;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: clamp(24px, 4.6vw, 40px);
+      line-height: 1;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .again {
+      width: min(340px, 100%);
+      background: linear-gradient(135deg, #15171c, #4d5665);
+    }
+
+    .start-button {
+      display: block;
+      width: min(340px, 100%);
+      margin: 0 auto;
+      background: linear-gradient(135deg, #25b878, #137b50);
+    }
+
+    @keyframes dance {
+      from {
+        transform: translateY(0) rotate(-7deg) scaleY(.97);
+      }
+      to {
+        transform: translateY(-28px) rotate(8deg) scaleY(1.03);
+      }
+    }
+
+    @keyframes popDance {
+      0%, 100% {
+        transform: translateY(0) scale(1);
+      }
+      38% {
+        transform: translateY(-22px) scale(1.18, .88);
+      }
+      70% {
+        transform: translateY(4px) scale(.92, 1.12);
+      }
+    }
+
+    @keyframes twirlDance {
+      0%, 100% {
+        transform: translateY(0) rotate(-10deg);
+      }
+      35% {
+        transform: translateY(-24px) rotate(13deg);
+      }
+      70% {
+        transform: translateY(-6px) rotate(-18deg);
+      }
+    }
+
+    @keyframes waveLeft {
+      from {
+        transform: rotate(12deg);
+      }
+      to {
+        transform: rotate(82deg);
+      }
+    }
+
+    @keyframes waveRight {
+      from {
+        transform: rotate(-12deg);
+      }
+      to {
+        transform: rotate(-82deg);
+      }
+    }
+
+    @keyframes sob {
+      from {
+        transform: translateX(-5px) rotate(-2deg);
+      }
+      to {
+        transform: translateX(5px) rotate(2deg);
+      }
+    }
+
+    @keyframes slump {
+      from {
+        transform: translateY(0) rotate(-4deg) scaleY(1);
+      }
+      to {
+        transform: translateY(14px) rotate(4deg) scaleY(.9);
+      }
+    }
+
+    @keyframes dizzyWobble {
+      0%, 100% {
+        transform: translateX(0) rotate(0);
+      }
+      25% {
+        transform: translateX(-8px) rotate(-8deg);
+      }
+      75% {
+        transform: translateX(8px) rotate(8deg);
+      }
+    }
+
+    @keyframes tearDrop {
+      from {
+        transform: translateY(0) scale(.8);
+        opacity: 1;
+      }
+      to {
+        transform: translateY(42px) scale(1.1);
+        opacity: 0;
+      }
+    }
+
+    @keyframes confetti {
+      from {
+        transform: translateY(-10px) rotate(0);
+      }
+      to {
+        transform: translateY(22px) rotate(16deg);
+      }
+    }
+
+    @keyframes fireworkBurst {
+      0% {
+        opacity: 0;
+        transform: scale(.18) rotate(0);
+        filter: brightness(1.4);
+      }
+      18% {
+        opacity: 1;
+      }
+      74% {
+        opacity: .9;
+      }
+      100% {
+        opacity: 0;
+        transform: scale(2.7) rotate(28deg);
+        filter: brightness(.92);
+      }
+    }
+
+    @keyframes sparklePop {
+      0% {
+        opacity: 0;
+        transform: scale(.2) rotate(0);
+      }
+      35% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: scale(1.8) rotate(140deg);
+      }
+    }
+
+    @keyframes ufoFly {
+      0% {
+        transform: translateX(0) translateY(0) rotate(-7deg);
+      }
+      45% {
+        transform: translateX(55vw) translateY(26px) rotate(5deg);
+      }
+      100% {
+        transform: translateX(118vw) translateY(-4px) rotate(-4deg);
+      }
+    }
+
+    @keyframes orbitStar {
+      from {
+        transform: rotate(0) translateX(12px) rotate(0);
+      }
+      to {
+        transform: rotate(360deg) translateX(12px) rotate(-360deg);
+      }
+    }
+
+    @keyframes bubbleFloat {
+      0% {
+        opacity: 0;
+        transform: translateY(0) scale(.5);
+      }
+      20% {
+        opacity: .9;
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-105px) scale(1.35);
+      }
+    }
+
+    @keyframes fadeOut {
+      0%, 86% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+      }
+    }
+
+    @keyframes medalBounce {
+      0%, 100% {
+        transform: translateY(0) rotate(-2deg);
+      }
+      50% {
+        transform: translateY(-16px) rotate(2deg);
+      }
+    }
+
+    @keyframes medalShine {
+      from {
+        filter: brightness(1);
+      }
+      to {
+        filter: brightness(1.22);
+      }
+    }
+
+    @media (max-width: 620px) {
+      body {
+        padding: 14px;
+      }
+
+      .game {
+        min-height: calc(100vh - 28px);
+      }
+
+      .topbar {
+        flex-wrap: wrap;
+      }
+
+      .meter {
+        order: 3;
+        max-width: none;
+        flex-basis: 100%;
+      }
+
+      .stage {
+        min-height: 360px;
+      }
+
+      .controls {
+        gap: 10px;
+      }
+
+      .choice,
+      .again,
+      .start-button {
+        min-height: 58px;
+      }
+
+      .stats {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+      }
+
+      .summary {
+        padding: 10px;
+      }
+
+      .summary h1 {
+        font-size: 32px;
+        margin-bottom: 4px;
+      }
+
+      .summary p {
+        font-size: 15px;
+        margin-bottom: 8px;
+      }
+
+      .setup p {
+        white-space: normal;
+      }
+
+      .medal-scene {
+        min-height: 96px;
+        margin-bottom: 6px;
+      }
+
+      .medal-alien {
+        width: 78px;
+        height: 98px;
+      }
+
+      .stat {
+        padding: 8px 4px;
+      }
+
+      .stat strong {
+        font-size: 22px;
+      }
+
+      .stat span {
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="game" aria-live="polite">
+    <header class="topbar">
+      <div id="roundCount">word 1 of 20</div>
+      <div class="meter" aria-hidden="true"><span id="progress"></span></div>
+      <div id="scoreCount">score 0</div>
+    </header>
+
+    <section class="stage">
+      <h1 id="word" class="word"></h1>
+
+      <div id="feedback" class="feedback" aria-hidden="true"></div>
+
+      <div id="setup" class="setup">
+        <div class="setup-box">
+          <h1>Real or Alien?</h1>
+          <p>Choose how many real words and alien words to play.</p>
+          <div class="length-control">
+            <label for="roundLength">Words of each type</label>
+            <input id="roundLength" type="number" min="1" value="10" inputmode="numeric">
+          </div>
+          <button id="startGame" class="start-button" type="button">START</button>
+        </div>
+      </div>
+
+      <div id="summary" class="summary">
+        <div class="summary-box">
+          <h1>Round complete</h1>
+          <p id="summaryLine"></p>
+          <div id="medalScene" class="medal-scene" aria-hidden="true">
+            <div class="medal-alien">
+              <div class="creature">
+                <span class="antenna left"></span>
+                <span class="antenna right"></span>
+                <span class="eye-dot left"></span>
+                <span class="eye-dot right"></span>
+                <span class="mouth"></span>
+                <span class="belly"></span>
+                <span class="arm left"></span>
+                <span class="arm right"></span>
+                <span class="leg left"></span>
+                <span class="leg right"></span>
+              </div>
+              <span class="medal-ribbon"></span>
+              <span id="medal" class="medal" data-label=""></span>
+            </div>
+          </div>
+          <div class="stats">
+            <div class="stat">
+              <strong id="finalScore">0</strong>
+              <span>score</span>
+            </div>
+            <div class="stat">
+              <strong id="realScore">0</strong>
+              <span>real correct</span>
+            </div>
+            <div class="stat">
+              <strong id="alienScore">0</strong>
+              <span>alien correct</span>
+            </div>
+          </div>
+          <button id="again" class="again" type="button">PLAY AGAIN</button>
+        </div>
+      </div>
+    </section>
+
+    <nav class="controls" aria-label="Choose word type">
+      <button class="choice real" data-choice="real" type="button">REAL</button>
+      <button class="choice alien" data-choice="alien" type="button">ALIEN</button>
+    </nav>
+  </main>
+
+  <script>
+    const realWords = ["chat", "mess", "thick", "shook", "sleet", "moist", "shelf", "days", "chase", "flake", "thrash", "blank", "shrink", "stripe", "scrubs", "comic", "peanut", "jetpack", "them", "hood", "chess", "sheet", "spark", "dress", "bump", "quilt", "loaf", "those", "plate", "shrunk", "strive", "vital", "laptop", "airport", "farmyard", "fill", "seem", "quack", "cheek", "greed", "floss", "west", "seeks", "bake", "thrill", "stand", "thrust", "strap", "scrump", "pedal", "rocket", "foghorn", "windmill", "that", "hill", "toil", "shark", "start", "speck", "joint", "girl", "chute", "spoke", "twist", "shrank", "strop", "stroke", "seven", "beanbag", "ragdoll", "aircraft", "quiz", "dish", "foil", "shoot", "scoop", "truck", "dusk", "thank", "pout", "shame", "beast", "clamp", "clowns", "scrap", "liver", "winegum", "starfish", "muck", "wool", "shock", "sharp", "trip", "damp", "toad", "quake", "heats", "spots", "photo", "seventh", "ballgown", "crush", "scouts", "stray", "thrush", "sandal", "yawns", "speeds", "powder", "woodwork", "scrub"];
+    const alienWords = ["jik", "rab", "rix", "thim", "doop", "shuss", "charb", "pleem", "toct", "tharg", "burm", "quame", "spife", "lirsk", "slewns", "shruld", "spleg", "scrunt", "lon", "fof", "lep", "und", "dass", "vord", "shozz", "thoob", "clarn", "frezz", "borst", "quonk", "lote", "chone", "throll", "blirns", "splane", "splent", "dak", "wab", "lim", "hoth", "shoip", "clid", "lomp", "thist", "moup", "neze", "pline", "trawns", "stree", "sproke", "fot", "tid", "kep", "shib", "maff", "norp", "flig", "clish", "fards", "thonk", "fawd", "chume", "shrock", "bawps", "glruns", "shronk", "splud", "splede", "fip", "nos", "bim", "unt", "thag", "jush", "goil", "tharm", "clup", "trock", "fornt", "chond", "birg", "pode", "plout", "moank", "frouds", "thraft", "sprin", "spresk", "gok", "lut", "ilm", "shid", "mozz", "teep", "queeg", "plood", "lasp", "veesk", "laip", "chede", "shrull", "maint", "drems", "shrist", "splur", "splads", "shang", "throld", "ust", "crub", "chag", "shrong", "olg", "quock", "mewlt", "stesh"];
+
+    const state = {
+      round: [],
+      index: 0,
+      score: 0,
+      realCorrect: 0,
+      alienCorrect: 0,
+      wordsPerType: 10,
+      maxWordsPerType: 10,
+      locked: false
+    };
+
+    const wordEl = document.querySelector("#word");
+    const stageEl = document.querySelector(".stage");
+    const setupEl = document.querySelector("#setup");
+    const roundLengthEl = document.querySelector("#roundLength");
+    const startGameEl = document.querySelector("#startGame");
+    const roundCountEl = document.querySelector("#roundCount");
+    const scoreCountEl = document.querySelector("#scoreCount");
+    const progressEl = document.querySelector("#progress");
+    const feedbackEl = document.querySelector("#feedback");
+    const summaryEl = document.querySelector("#summary");
+    const summaryLineEl = document.querySelector("#summaryLine");
+    const finalScoreEl = document.querySelector("#finalScore");
+    const realScoreEl = document.querySelector("#realScore");
+    const alienScoreEl = document.querySelector("#alienScore");
+    const medalSceneEl = document.querySelector("#medalScene");
+    const medalEl = document.querySelector("#medal");
+    const choiceButtons = [...document.querySelectorAll(".choice")];
+    let audioContext;
+    let cheerTimer;
+    let cheerStopTimer;
+    const FEEDBACK_MS = 2400;
+
+    function getAudioContext() {
+      if (!audioContext) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return null;
+        audioContext = new AudioContextClass();
+      }
+      if (audioContext.state === "suspended") {
+        audioContext.resume();
+      }
+      return audioContext;
+    }
+
+    function playTone(frequency, start, duration, type = "sine", volume = .12) {
+      const context = getAudioContext();
+      if (!context) return;
+
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(volume, start + .02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(start);
+      oscillator.stop(start + duration + .04);
+    }
+
+    function playSweep(fromFrequency, toFrequency, start, duration, type = "sine", volume = .1) {
+      const context = getAudioContext();
+      if (!context) return;
+
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(fromFrequency, start);
+      oscillator.frequency.exponentialRampToValueAtTime(toFrequency, start + duration);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(volume, start + .025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(start);
+      oscillator.stop(start + duration + .04);
+    }
+
+    function playNoise(start, duration, volume = .08, filterFrequency = 1400) {
+      const context = getAudioContext();
+      if (!context) return;
+
+      const buffer = context.createBuffer(1, Math.floor(context.sampleRate * duration), context.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i += 1) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+      }
+
+      const source = context.createBufferSource();
+      const filter = context.createBiquadFilter();
+      const gain = context.createGain();
+      source.buffer = buffer;
+      filter.type = "bandpass";
+      filter.frequency.setValueAtTime(filterFrequency, start);
+      filter.Q.setValueAtTime(1.8, start);
+      gain.gain.setValueAtTime(volume, start);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(context.destination);
+      source.start(start);
+    }
+
+    function playAnswerSound(correct, variant) {
+      const context = getAudioContext();
+      if (!context) return;
+
+      const now = context.currentTime;
+      if (correct) {
+        if (variant === "pop") {
+          playSweep(180, 560, now, .18, "sine", .035);
+          [659.25, 880, 1174.66].forEach((frequency, index) => {
+            playTone(frequency, now + .18 + index * .08, .16, "triangle", .032);
+          });
+          playNoise(now + .12, .22, .016, 3000);
+        } else if (variant === "twirl") {
+          [523.25, 659.25, 783.99, 1046.5].forEach((frequency, index) => {
+            playTone(frequency, now + index * .07, .18, "sine", .028);
+          });
+          playSweep(740, 1480, now + .18, .34, "sine", .022);
+        } else {
+          [523.25, 659.25, 783.99].forEach((frequency, index) => {
+            playTone(frequency, now + index * .09, .24, "triangle", .035);
+          });
+          playTone(1046.5, now + .32, .28, "sine", .026);
+          playNoise(now + .18, .28, .018, 2600);
+        }
+      } else {
+        if (variant === "dizzy") {
+          playSweep(360, 240, now, .2, "sine", .03);
+          playSweep(240, 330, now + .22, .18, "sine", .024);
+          playTone(196, now + .48, .22, "triangle", .024);
+        } else if (variant === "slump") {
+          playSweep(260, 130.81, now, .48, "sine", .032);
+          playTone(146.83, now + .48, .28, "triangle", .022);
+        } else {
+          [293.66, 246.94, 220].forEach((frequency, index) => {
+            playTone(frequency, now + index * .14, .26, "sine", .035);
+          });
+          playSweep(220, 164.81, now + .36, .38, "sine", .026);
+        }
+      }
+    }
+
+    function playCheerSound() {
+      const context = getAudioContext();
+      if (!context) return;
+
+      const now = context.currentTime;
+      playNoise(now, .55, .032, 1700);
+      playNoise(now + .42, .35, .026, 2300);
+      [523.25, 659.25, 783.99].forEach((frequency, index) => {
+        playTone(frequency, now + index * .08, .28, "triangle", .028);
+      });
+      playTone(1046.5, now + .38, .24, "sine", .024);
+    }
+
+    function startCheerLoop() {
+      stopCheerLoop();
+      playCheerSound();
+      cheerTimer = window.setInterval(playCheerSound, 2400);
+      cheerStopTimer = window.setTimeout(stopCheerLoop, 10000);
+    }
+
+    function stopCheerLoop() {
+      if (cheerTimer) {
+        window.clearInterval(cheerTimer);
+        cheerTimer = null;
+      }
+      if (cheerStopTimer) {
+        window.clearTimeout(cheerStopTimer);
+        cheerStopTimer = null;
+      }
+    }
+
+    function api(path, payload) {
+      if (path === "/api/status") {
+        return {
+          available: { real: realWords.length, alien: alienWords.length },
+          maxWordsPerType: Math.min(realWords.length, alienWords.length)
+        };
+      }
+      if (path === "/api/start") {
+        const maxWords = Math.min(realWords.length, alienWords.length);
+        const wordsPerType = Math.max(1, Math.min(maxWords, Number.parseInt(payload.wordsPerType, 10) || 10));
+        const round = shuffle([
+          ...sampleWords(realWords, "real", wordsPerType),
+          ...sampleWords(alienWords, "alien", wordsPerType)
+        ]);
+        return { wordsPerType, round };
+      }
+      if (path === "/api/answer") {
+        return { correct: payload.choice === payload.type };
+      }
+      throw new Error("Unknown local action");
+    }
+
+    function shuffle(items) {
+      const copy = [...items];
+      for (let i = copy.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function sampleWords(words, type, count) {
+      return shuffle(words).slice(0, count).map((word) => ({ word, type, source: "embedded" }));
+    }
+
+    function getMedal(score, total) {
+      const percent = score / total;
+      if (percent >= .95) return { type: "gold", label: "G", name: "gold medal" };
+      if (percent >= .85) return { type: "silver", label: "S", name: "silver medal" };
+      if (percent >= .75) return { type: "bronze", label: "B", name: "bronze medal" };
+      return null;
+    }
+
+    function pick(items) {
+      return items[Math.floor(Math.random() * items.length)];
+    }
+
+    function correctDecorations(variant) {
+      const fireworks = '<span class="firework one"></span><span class="firework two"></span><span class="firework three"></span>';
+      const sparkles = '<span class="sparkle one"></span><span class="sparkle two"></span><span class="sparkle three"></span>';
+      if (variant === "twirl") return `${sparkles}<span class="ufo"></span>`;
+      if (variant === "pop") return `${fireworks}${sparkles}`;
+      return fireworks;
+    }
+
+    function wrongDecorations(variant) {
+      if (variant === "dizzy") return '<span class="sad-bubble one"></span><span class="sad-bubble two"></span><span class="sad-bubble three"></span>';
+      if (variant === "slump") return '<span class="sad-bubble one"></span><span class="sad-bubble two"></span>';
+      return "";
+    }
+
+    function alienFace(includeTears = false, variant = "") {
+      return `
+        <span class="antenna left"></span>
+        <span class="antenna right"></span>
+        <span class="eye-dot left"></span>
+        <span class="eye-dot right"></span>
+        ${includeTears ? '<span class="tear left"></span><span class="tear right"></span>' : ""}
+        ${variant === "dizzy" ? '<span class="dizzy-star left"></span><span class="dizzy-star right"></span>' : ""}
+        <span class="mouth"></span>
+        <span class="belly"></span>
+        <span class="arm left"></span>
+        <span class="arm right"></span>
+        <span class="leg left"></span>
+        <span class="leg right"></span>
+      `;
+    }
+
+    function showFeedback(correct) {
+      const variant = correct ? pick(["dance", "pop", "twirl"]) : pick(["tears", "dizzy", "slump"]);
+      const mode = correct ? "party" : "cry";
+      feedbackEl.className = `feedback show ${mode} ${mode}-${variant}`;
+      feedbackEl.innerHTML = `
+        ${correct ? correctDecorations(variant) : wrongDecorations(variant)}
+        <div class="aliens" aria-hidden="true">
+          <div class="creature">${alienFace(!correct, variant)}</div>
+          <div class="creature">${alienFace(!correct, variant)}</div>
+          <div class="creature">${alienFace(!correct, variant)}</div>
+        </div>
+      `;
+      playAnswerSound(correct, variant);
+      window.setTimeout(() => {
+        feedbackEl.className = "feedback";
+        feedbackEl.innerHTML = "";
+        nextWord();
+      }, FEEDBACK_MS);
+    }
+
+    function updateTopbar() {
+      const answered = Math.min(state.index, state.round.length);
+      const current = Math.min(state.index + 1, state.round.length);
+      roundCountEl.textContent = `word ${current} of ${state.round.length}`;
+      scoreCountEl.textContent = `score ${state.score}`;
+      progressEl.style.setProperty("--progress", `${(answered / state.round.length) * 100}%`);
+    }
+
+    function fitWord() {
+      if (!wordEl.textContent) return;
+
+      const stageStyle = window.getComputedStyle(stageEl);
+      const horizontalPadding = parseFloat(stageStyle.paddingLeft) + parseFloat(stageStyle.paddingRight);
+      const maxWidth = (stageEl.clientWidth - horizontalPadding) * .92;
+      wordEl.style.fontSize = "180px";
+
+      const width = wordEl.scrollWidth;
+      const fittedSize = width > maxWidth ? Math.floor(180 * (maxWidth / width)) : 180;
+      wordEl.style.fontSize = `${Math.max(42, Math.min(180, fittedSize))}px`;
+    }
+
+    function renderWord() {
+      const current = state.round[state.index];
+      wordEl.textContent = current.word.toLowerCase();
+      fitWord();
+      wordEl.classList.remove("bump");
+      window.requestAnimationFrame(() => wordEl.classList.add("bump"));
+      updateTopbar();
+    }
+
+    function nextWord() {
+      state.index += 1;
+      state.locked = false;
+      choiceButtons.forEach((button) => {
+        button.disabled = false;
+      });
+
+      if (state.index >= state.round.length) {
+        showSummary();
+        return;
+      }
+
+      renderWord();
+    }
+
+    function answer(choice) {
+      if (state.locked) return;
+      state.locked = true;
+      choiceButtons.forEach((button) => {
+        button.disabled = true;
+      });
+
+      const current = state.round[state.index];
+      let result;
+      try {
+        result = api("/api/answer", {
+          word: current.word,
+          type: current.type,
+          choice
+        });
+      } catch (error) {
+        state.locked = false;
+        choiceButtons.forEach((button) => {
+          button.disabled = false;
+        });
+        window.alert(`Could not save answer: ${error.message}`);
+        return;
+      }
+
+      const correct = result.correct;
+
+      if (correct) {
+        state.score += 1;
+        if (current.type === "real") state.realCorrect += 1;
+        if (current.type === "alien") state.alienCorrect += 1;
+      }
+
+      scoreCountEl.textContent = `score ${state.score}`;
+      showFeedback(correct);
+    }
+
+    function showSummary() {
+      const total = state.round.length;
+      wordEl.textContent = "";
+      choiceButtons.forEach((button) => {
+        button.disabled = true;
+      });
+      progressEl.style.setProperty("--progress", "100%");
+      roundCountEl.textContent = "round complete";
+      scoreCountEl.textContent = `score ${state.score}`;
+      finalScoreEl.textContent = `${state.score}/${total}`;
+      realScoreEl.textContent = `${state.realCorrect}/${state.wordsPerType}`;
+      alienScoreEl.textContent = `${state.alienCorrect}/${state.wordsPerType}`;
+      const medal = getMedal(state.score, total);
+      if (medal) {
+        medalSceneEl.classList.add("show");
+        medalEl.className = `medal ${medal.type}`;
+        medalEl.dataset.label = medal.label;
+        summaryLineEl.textContent = `You got ${state.score} out of ${total} words correct and won a ${medal.name}.`;
+        startCheerLoop();
+      } else {
+        medalSceneEl.classList.remove("show");
+        medalEl.className = "medal";
+        medalEl.dataset.label = "";
+        summaryLineEl.textContent = `You got ${state.score} out of ${total} words correct.`;
+      }
+      summaryEl.classList.add("show");
+    }
+
+    function getRequestedRoundLength() {
+      const typedLength = Number.parseInt(roundLengthEl.value, 10);
+      const requestedLength = Number.isFinite(typedLength) ? typedLength : 10;
+      const clampedLength = Math.max(1, Math.min(state.maxWordsPerType, requestedLength));
+      roundLengthEl.value = clampedLength;
+      return clampedLength;
+    }
+
+    function startRound(wordsPerType = state.wordsPerType) {
+      stopCheerLoop();
+      let data;
+      try {
+        data = api("/api/start", { wordsPerType });
+      } catch (error) {
+        window.alert(`Could not start round: ${error.message}`);
+        return;
+      }
+
+      state.wordsPerType = data.wordsPerType;
+      state.round = data.round;
+      state.index = 0;
+      state.score = 0;
+      state.realCorrect = 0;
+      state.alienCorrect = 0;
+      state.locked = false;
+      roundLengthEl.value = state.wordsPerType;
+      setupEl.classList.add("hide");
+      summaryEl.classList.remove("show");
+      medalSceneEl.classList.remove("show");
+      choiceButtons.forEach((button) => {
+        button.disabled = false;
+      });
+      renderWord();
+    }
+
+    function showSetup() {
+      stopCheerLoop();
+      setupEl.classList.remove("hide");
+      summaryEl.classList.remove("show");
+      medalSceneEl.classList.remove("show");
+      feedbackEl.className = "feedback";
+      feedbackEl.innerHTML = "";
+      wordEl.textContent = "";
+      roundCountEl.textContent = "choose length";
+      scoreCountEl.textContent = "score 0";
+      progressEl.style.setProperty("--progress", "0%");
+      choiceButtons.forEach((button) => {
+        button.disabled = true;
+      });
+    }
+
+    function configureRoundLengthInput() {
+      try {
+        const status = api("/api/status");
+        state.maxWordsPerType = status.maxWordsPerType;
+      } catch (error) {
+        state.maxWordsPerType = 10;
+        window.alert(`Could not read word files: ${error.message}`);
+      }
+      roundLengthEl.max = state.maxWordsPerType;
+      roundLengthEl.value = state.wordsPerType;
+    }
+
+    function bindButton(button, handler) {
+      let touched = false;
+      button.addEventListener("touchend", (event) => {
+        touched = true;
+        event.preventDefault();
+        handler(event);
+      }, { passive: false });
+      button.addEventListener("click", (event) => {
+        if (touched) {
+          touched = false;
+          return;
+        }
+        handler(event);
+      });
+    }
+
+    choiceButtons.forEach((button) => {
+      bindButton(button, () => answer(button.dataset.choice));
+    });
+
+    bindButton(startGameEl, () => {
+      startRound(getRequestedRoundLength());
+    });
+    roundLengthEl.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        startRound(getRequestedRoundLength());
+      }
+    });
+    bindButton(document.querySelector("#again"), showSetup);
+    window.addEventListener("resize", fitWord);
+    configureRoundLengthInput();
+    showSetup();
+  </script>
+</body>
+</html>
